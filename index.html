@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estado de Servicios | UABC</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        uabc: { green: '#007236', dark: '#005528', gold: '#F2A900', light: '#f4f7f6' }
+                    },
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-uabc-light dark:bg-gray-900 transition-colors duration-300 min-h-screen flex flex-col">
+
+    <header class="bg-uabc-green dark:bg-gray-950 text-white shadow-md border-b-4 border-uabc-gold transition-colors duration-300">
+        <div class="max-w-6xl mx-auto px-4 py-5 flex flex-col md:flex-row justify-between items-center">
+            
+            <div class="flex items-center gap-4 mb-4 md:mb-0">
+                <img src="logoUABC.png" 
+                     alt="Escudo UABC" class="h-12 w-auto object-contain drop-shadow-md">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-wide">Monitor de Servicios</h1>
+                    <p class="text-sm text-green-100 opacity-90 dark:text-gray-400">Universidad Autónoma de Baja California</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-3">
+                <button onclick="toggleDarkMode()" class="p-2.5 bg-white/10 hover:bg-white/20 rounded-lg transition" title="Alternar tema">
+                    <i class="ph ph-moon text-xl" id="darkModeIcon"></i>
+                </button>
+                
+                <button onclick="checkAllServices()" id="refreshBtn" class="bg-white dark:bg-gray-800 text-uabc-green dark:text-uabc-gold font-semibold py-2 px-6 rounded-lg shadow hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-200 flex items-center gap-2">
+                    <i class="ph ph-arrows-clockwise text-xl" id="refreshIcon"></i>
+                    <span>Actualizar</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-6xl mx-auto px-4 py-8 w-full">
+        
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 transition-colors duration-300">
+            <div class="flex-1 w-full">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Estado Global del Sistema</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-1" id="lastUpdateText">Última revisión: Esperando...</p>
+            </div>
+            
+            <div class="w-full md:w-72 relative">
+                <i class="ph ph-magnifying-glass absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg"></i>
+                <input type="text" id="searchInput" placeholder="Buscar servicio..." onkeyup="filterServices()" class="w-full pl-10 pr-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-uabc-green dark:text-white transition-all shadow-inner">
+            </div>
+
+            <div id="globalStatus" class="flex items-center justify-center w-full md:w-auto gap-2 px-4 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium whitespace-nowrap">
+                <i class="ph ph-circle-notch spin text-lg"></i>
+                <span>Revisando...</span>
+            </div>
+        </div>
+
+        <div id="servicesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+
+    </main>
+
+    <div id="serviceModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-gray-800 w-full max-w-3xl rounded-2xl shadow-2xl m-4 transform scale-95 transition-transform duration-300 border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-800/50">
+                <div class="flex items-center gap-3">
+                    <div id="modalIcon" class="w-10 h-10 rounded-full flex items-center justify-center text-xl"></div>
+                    <div>
+                        <h2 id="modalTitle" class="text-xl font-bold text-gray-800 dark:text-white">Nombre Servicio</h2>
+                        <a id="modalUrl" href="#" target="_blank" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">URL</a>
+                    </div>
+                </div>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-white transition">
+                    <i class="ph ph-x text-2xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto">
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 text-center border border-gray-100 dark:border-gray-700">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wide">Disponibilidad</p>
+                        <p id="modalUptime" class="text-2xl font-bold text-gray-800 dark:text-white mt-1">99.9%</p>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 text-center border border-gray-100 dark:border-gray-700">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wide">Latencia Actual</p>
+                        <p id="modalLatency" class="text-2xl font-bold text-gray-800 dark:text-white mt-1">120ms</p>
+                    </div>
+                    <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 text-center border border-gray-100 dark:border-gray-700">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-bold tracking-wide">Estado</p>
+                        <div id="modalStatusBadge" class="inline-block px-3 py-1 rounded-full text-sm font-semibold mt-1">En línea</div>
+                    </div>
+                </div>
+                
+                <h3 class="text-sm font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center gap-2">
+                    <i class="ph ph-chart-line-up text-uabc-green"></i> Historial de Latencia (Últimas 24h)
+                </h3>
+                <div class="w-full h-64 bg-white dark:bg-gray-800">
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

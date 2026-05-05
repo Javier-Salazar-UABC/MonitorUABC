@@ -1,0 +1,19 @@
+body { 
+    font-family: 'Inter', sans-serif; 
+}
+
+/* Animación de carga */
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* Animación de entrada para tarjetas */
+.fade-in { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
+@keyframes fadeIn { 
+    from { opacity: 0; transform: translateY(10px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}
+
+/* Utilidades para el Modal */
+.modal-active { display: flex !important; }
+.modal-show { opacity: 1 !important; }
+.modal-scale { transform: scale(1) !important; }
