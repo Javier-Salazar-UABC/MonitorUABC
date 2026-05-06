@@ -1,0 +1,72 @@
+[
+    {
+        "id": "portal",
+        "name": "Portal Principal UABC",
+        "url": "https://www.uabc.mx/",
+        "category": "General",
+        "uptime": "99.9%"
+    },
+    {
+        "id": "siia_alum",
+        "name": "AlumnosUABC",
+        "url": "https://alumnos.uabc.mx/",
+        "category": "Estudiantes",
+        "uptime": "99.8%"
+    },
+    {
+        "id": "siia_emp",
+        "name": "EmpleadosUABC",
+        "url": "https://empleados.uabc.mx/",
+        "category": "Docentes",
+        "uptime": "99.7%"
+    },
+    {
+        "id": "blackboard",
+        "name": "Blackboard Learn",
+        "url": "https://uabc.blackboard.com/",
+        "category": "Académico",
+        "uptime": "98.5%"
+    },
+    {
+        "id": "admisiones",
+        "name": "Portal de Admisiones",
+        "url": "https://admisiones.uabc.mx/",
+        "category": "Aspirantes",
+        "uptime": "99.9%"
+    },
+    {
+        "id": "sorteos",
+        "name": "Sorteos UABC",
+        "url": "https://www.sorteosuabc.mx/",
+        "category": "General",
+        "uptime": "99.5%"
+    },
+    {
+        "id": "correo",
+        "name": "Correo Universitario",
+        "url": "https://correo.uabc.edu.mx/",
+        "category": "Comunicación",
+        "uptime": "99.9%"
+    },
+    {
+        "id": "biblioteca",
+        "name": "Sistema de Bibliotecas",
+        "url": "https://bibliotecas.uabc.mx/",
+        "category": "Académico",
+        "uptime": "99.6%"
+    },
+    {
+        "id": "pagos",
+        "name": "Sistema de Pagos UABC)",
+        "url": "https://sue.uabc.mx/",
+        "category": "Administrativo",
+        "uptime": "99.4%"
+    },
+    {
+        "id": "Test",
+        "name": "Sistema de Prueba)",
+        "url": "https://test.com/",
+        "category": "Comunicación",
+        "uptime": "99.4%"
+    }
+]

@@ -1,15 +1,5 @@
 // 1. CONFIGURACIÓN INICIAL Y DATOS
-const uabcServices = [
-    { id: 'portal', name: 'Portal Principal UABC', url: 'https://www.uabc.mx/', category: 'General', uptime: '99.9%' },
-    { id: 'siia_alum', name: 'SIIA Alumnos', url: 'https://alumnos.uabc.mx/', category: 'Estudiantes', uptime: '99.8%' },
-    { id: 'siia_emp', name: 'SIIA Empleados', url: 'https://empleados.uabc.mx/', category: 'Docentes', uptime: '99.7%' },
-    { id: 'blackboard', name: 'Blackboard Learn', url: 'https://uabc.blackboard.com/', category: 'Académico', uptime: '98.5%' },
-    { id: 'admisiones', name: 'Portal de Admisiones', url: 'https://admisiones.uabc.mx/', category: 'Aspirantes', uptime: '99.9%' },
-    { id: 'sorteos', name: 'Sorteos UABC', url: 'https://www.sorteosuabc.mx/', category: 'General', uptime: '99.5%' },
-    { id: 'correo', name: 'Correo Universitario', url: 'https://correo.uabc.edu.mx/', category: 'Comunicación', uptime: '99.9%' },
-    { id: 'biblioteca', name: 'Sistema de Bibliotecas', url: 'https://bibliotecas.uabc.mx/', category: 'Académico', uptime: '99.6%' },
-    { id: 'pagos', name: 'Sistema de Pagos (SUE)', url: 'https://sue.uabc.mx/', category: 'Administrativo', uptime: '99.4%' }
-];
+let uabcServices = [];
 
 // almacenamiento del estado en memoria
 let servicesState = {};
@@ -37,6 +27,19 @@ function toggleDarkMode() {
 }
 
 initDarkMode(); // ejecutar al cargar
+
+async function loadServicesData() {
+    try {
+        const response = await fetch('services.json');
+        if (!response.ok) throw new Error('No se pudo cargar el archivo de servicios');
+        uabcServices = await response.json();
+    } catch (error) {
+        console.error('Error cargando servicios:', error);
+        const globalStatus = document.getElementById('globalStatus');
+        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-100 text-red-600 font-medium';
+        globalStatus.innerHTML = '<i class="ph ph-x-circle text-xl"></i><span>Error al cargar servicios</span>';
+    }
+}
 
 // 3. renderizado de tarjetas
 const servicesGrid = document.getElementById('servicesGrid');
@@ -295,4 +298,9 @@ function filterServices() {
 }
 
 // iniciar al cargar
-window.onload = checkAllServices;
+window.onload = async () => {
+    await loadServicesData();
+    if (uabcServices.length > 0) {
+        checkAllServices();
+    }
+};
