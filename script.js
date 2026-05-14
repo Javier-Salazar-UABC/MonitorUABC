@@ -95,34 +95,46 @@ async function checkAllServices() {
 
     let onlineCount = 0; let offlineCount = 0; let slowCount = 0;
 
-    const checks = uabcServices.map(service => {
-        return new Promise(resolve => {
-            // simulamos latencia de red entre 100ms y 2500ms
-            const simulatedLatency = Math.floor(Math.random() * 2400) + 100;
+    const checks = uabcServices.map(async (service) => {
+        const start = performance.now();
+        let status = 'online';
+        let latency = 0;
 
-            setTimeout(() => {
-                const isOffline = Math.random() > 0.90; // 10% probabilidad de falla
-                let status = 'online';
+        try {
+            // Usamos un timeout para no esperar indefinidamente
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos de timeout
 
-                if (isOffline) {
-                    status = 'offline';
-                    offlineCount++;
-                } else if (simulatedLatency > 1200) {
-                    status = 'slow';
-                    slowCount++;
-                    onlineCount++;
-                } else {
-                    status = 'online';
-                    onlineCount++;
-                }
+            // Intentamos hacer fetch al servicio
+            // mode: 'no-cors' permite que la petición se envíe incluso si el destino no tiene CORS habilitado.
+            // Aunque la respuesta sea opaca, si el servidor responde, asumimos que está activo.
+            await fetch(service.url, {
+                mode: 'no-cors',
+                signal: controller.signal,
+                cache: 'no-cache'
+            });
 
-                // guardamos en estado y actualizamos UI
-                servicesState[service.id] = { status: status, latency: isOffline ? 0 : simulatedLatency };
-                updateCardStatus(service.id, status, simulatedLatency);
+            clearTimeout(timeoutId);
+            latency = Math.round(performance.now() - start);
 
-                resolve();
-            }, simulatedLatency);
-        });
+            if (latency > 3000) {
+                status = 'slow';
+                slowCount++;
+                onlineCount++;
+            } else {
+                status = 'online';
+                onlineCount++;
+            }
+        } catch (error) {
+            console.warn(`Error verificando ${service.name}:`, error);
+            status = 'offline';
+            offlineCount++;
+            latency = 0;
+        }
+
+        // guardamos en estado y actualizamos UI
+        servicesState[service.id] = { status: status, latency: latency };
+        updateCardStatus(service.id, status, latency);
     });
 
     await Promise.all(checks);

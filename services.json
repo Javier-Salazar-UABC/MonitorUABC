@@ -57,14 +57,14 @@
     },
     {
         "id": "pagos",
-        "name": "Sistema de Pagos UABC)",
+        "name": "Sistema de Pagos UABC",
         "url": "https://sue.uabc.mx/",
         "category": "Administrativo",
         "uptime": "99.4%"
     },
     {
         "id": "Test",
-        "name": "Sistema de Prueba)",
+        "name": "Sistema de Prueba",
         "url": "https://test.com/",
         "category": "Comunicación",
         "uptime": "99.4%"
