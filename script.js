@@ -591,6 +591,36 @@ function filterServices() {
     });
 }
 
+// Recalcular y actualizar el banner de estado global
+function recalculateGlobalStatus() {
+    let onlineCount = 0; let offlineCount = 0; let slowCount = 0;
+    uabcServices.forEach(service => {
+        const state = servicesState[service.id] || { status: 'online' };
+        if (state.status === 'offline') {
+            offlineCount++;
+        } else if (state.status === 'slow') {
+            slowCount++;
+            onlineCount++;
+        } else {
+            onlineCount++;
+        }
+    });
+
+    const globalStatus = document.getElementById('globalStatus');
+    if (globalStatus) {
+        if (offlineCount > 0) {
+            globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium animate-pulse';
+            globalStatus.innerHTML = `<i class="ph ph-warning-circle text-xl"></i><span>${offlineCount} sistema(s) caídos</span>`;
+        } else if (slowCount > 0) {
+            globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 font-medium';
+            globalStatus.innerHTML = `<i class="ph ph-warning text-xl"></i><span>${slowCount} sistema(s) lentos</span>`;
+        } else {
+            globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-green-100 dark:bg-green-900/30 text-uabc-green dark:text-green-400 font-medium';
+            globalStatus.innerHTML = '<i class="ph ph-check-circle text-xl"></i><span>Sistemas operando al 100%</span>';
+        }
+    }
+}
+
 // Actualizar la interfaz directamente con los datos cargados desde la BD sin hacer pings ni escrituras
 function updateUIFromLoadedData() {
     renderCards();
@@ -605,6 +635,43 @@ function updateUIFromLoadedData() {
             
         if (status === 'offline') {
             offlineCount++;
+            
+            // MECANISMO DE AUTOCORRECCIÓN (Self-Healing):
+            // Si la base de datos dice que está caído (porque el bot en la nube de GitHub Actions fue bloqueado por IP),
+            // el navegador del estudiante (que usa IP residencial sin bloqueo) hace una prueba silenciosa.
+            // Si responde correctamente, corrige el estado en Firestore y la interfaz de inmediato.
+            setTimeout(async () => {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+                    const startCheck = performance.now();
+                    
+                    await fetch(service.url, {
+                        mode: 'no-cors',
+                        signal: controller.signal,
+                        cache: 'no-cache'
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    const clientLatency = Math.round(performance.now() - startCheck);
+                    const finalStatus = clientLatency > 3000 ? 'slow' : 'online';
+                    
+                    console.log(`✨ Autocorrección: ${service.name} estaba marcado como caído por el bot, pero está en línea para el cliente. Corrigiendo...`);
+                    
+                    // Guardar corrección real en Firestore/localStorage
+                    await logServiceStatus(service.id, finalStatus, clientLatency);
+                    
+                    // Actualizar estado en interfaz
+                    servicesState[service.id] = { status: finalStatus, latency: clientLatency };
+                    updateCardStatus(service.id, finalStatus, clientLatency);
+                    
+                    // Actualizar el banner global
+                    recalculateGlobalStatus();
+                } catch (err) {
+                    // Si falla de verdad, se queda como offline
+                }
+            }, 500 + Math.random() * 1500); // Escalado aleatorio para evitar ráfagas
+            
         } else if (status === 'slow') {
             slowCount++;
             onlineCount++;
@@ -628,19 +695,7 @@ function updateUIFromLoadedData() {
     }
     
     document.getElementById('lastUpdateText').innerText = `Última revisión: ${latestChecked.toLocaleTimeString()}`;
-    
-    // Actualizar resumen global
-    const globalStatus = document.getElementById('globalStatus');
-    if (offlineCount > 0) {
-        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium animate-pulse';
-        globalStatus.innerHTML = `<i class="ph ph-warning-circle text-xl"></i><span>${offlineCount} sistema(s) caídos</span>`;
-    } else if (slowCount > 0) {
-        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 font-medium';
-        globalStatus.innerHTML = `<i class="ph ph-warning text-xl"></i><span>${slowCount} sistema(s) lentos</span>`;
-    } else {
-        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-green-100 dark:bg-green-900/30 text-uabc-green dark:text-green-400 font-medium';
-        globalStatus.innerHTML = '<i class="ph ph-check-circle text-xl"></i><span>Sistemas operando al 100%</span>';
-    }
+    recalculateGlobalStatus();
 }
 
 // Iniciar al cargar
