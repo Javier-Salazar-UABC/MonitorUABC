@@ -215,7 +215,7 @@ function renderCards() {
     });
 }
 
-// 5. LÓGICA DE MONITOREO Y LATENCIA
+// 5. LÓGICA DE MONITOREO Y LATENCIA (LECTURA DESDE LA BASE DE DATOS)
 async function checkAllServices(isInitial = false) {
     const refreshBtn = document.getElementById('refreshBtn');
     const refreshIcon = document.getElementById('refreshIcon');
@@ -224,87 +224,27 @@ async function checkAllServices(isInitial = false) {
     if (refreshIcon) refreshIcon.classList.add('spin');
     if (refreshBtn) refreshBtn.disabled = true;
     
-    // Solo regenerar el HTML de las tarjetas si es la carga inicial o la grilla está vacía
-    if (isInitial || !document.getElementById(`card-${uabcServices[0].id}`)) {
-        renderCards();
-    } else {
-        // Si ya existen las tarjetas, solo reseteamos sus estados visualmente a "Verificando..."
-        uabcServices.forEach(service => {
-            const badge = document.getElementById(`badge-${service.id}`);
-            const iconDiv = document.getElementById(`icon-${service.id}`);
-            if (badge && iconDiv) {
-                badge.className = 'px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
-                badge.innerHTML = 'Verificando...';
-                iconDiv.className = 'w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-500';
-                iconDiv.innerHTML = '<i class="ph ph-circle-notch spin text-xl"></i>';
-            }
-        });
+    if (globalStatus) {
+        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium';
+        globalStatus.innerHTML = '<i class="ph ph-circle-notch spin text-lg"></i><span>Sincronizando con base de datos...</span>';
     }
 
-    globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium';
-    globalStatus.innerHTML = '<i class="ph ph-circle-notch spin text-lg"></i><span>Revisando sistemas...</span>';
-
-    let onlineCount = 0; let offlineCount = 0; let slowCount = 0;
-
-    const checks = uabcServices.map(async (service) => {
-        const start = performance.now();
-        let status = 'online';
-        let latency = 0;
-
-        try {
-            // Usamos un timeout para no esperar indefinidamente
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos de timeout
-
-            // Intentamos hacer fetch al servicio con no-cors para evitar problemas de políticas de origen cruzado
-            await fetch(service.url, {
-                mode: 'no-cors',
-                signal: controller.signal,
-                cache: 'no-cache'
-            });
-
-            clearTimeout(timeoutId);
-            latency = Math.round(performance.now() - start);
-
-            if (latency > 3000) {
-                status = 'slow';
-                slowCount++;
-                onlineCount++;
-            } else {
-                status = 'online';
-                onlineCount++;
-            }
-        } catch (error) {
-            console.warn(`Error verificando ${service.name}:`, error);
-            status = 'offline';
-            offlineCount++;
-            latency = 0;
-        }
-
-        // Registrar resultados reales, calcular uptime y persistir en BD / localStorage
-        await logServiceStatus(service.id, status, latency);
-
-        // Guardamos en estado y actualizamos la tarjeta en la interfaz
-        servicesState[service.id] = { status: status, latency: latency };
-        updateCardStatus(service.id, status, latency);
-    });
-
-    await Promise.all(checks);
-
-    document.getElementById('lastUpdateText').innerText = `Última revisión: ${new Date().toLocaleTimeString()}`;
-    if (refreshIcon) refreshIcon.classList.remove('spin');
-    if (refreshBtn) refreshBtn.disabled = false;
-
-    // Actualizar resumen global
-    if (offlineCount > 0) {
-        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium animate-pulse';
-        globalStatus.innerHTML = `<i class="ph ph-warning-circle text-xl"></i><span>${offlineCount} sistema(s) caídos</span>`;
-    } else if (slowCount > 0) {
-        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 font-medium';
-        globalStatus.innerHTML = `<i class="ph ph-warning text-xl"></i><span>${slowCount} sistema(s) lentos</span>`;
-    } else {
-        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-green-100 dark:bg-green-900/30 text-uabc-green dark:text-green-400 font-medium';
-        globalStatus.innerHTML = '<i class="ph ph-check-circle text-xl"></i><span>Sistemas operando al 100%</span>';
+    try {
+        // En lugar de hacer pings desde el navegador (lo cual falla por CORS y Contenido Mixto HTTPS/HTTP),
+        // descargamos los últimos estados reales del bot en la nube de GitHub Actions.
+        await loadServicesData();
+        
+        // Renderizar los estados directamente
+        updateUIFromLoadedData();
+        
+    } catch (error) {
+        console.error("Error al sincronizar servicios:", error);
+    } finally {
+        // Simular un pequeño delay de carga premium
+        setTimeout(() => {
+            if (refreshIcon) refreshIcon.classList.remove('spin');
+            if (refreshBtn) refreshBtn.disabled = false;
+        }, 800);
     }
 }
 
