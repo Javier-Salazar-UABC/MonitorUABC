@@ -221,8 +221,8 @@ async function checkAllServices(isInitial = false) {
     const refreshIcon = document.getElementById('refreshIcon');
     const globalStatus = document.getElementById('globalStatus');
 
-    refreshIcon.classList.add('spin');
-    refreshBtn.disabled = true;
+    if (refreshIcon) refreshIcon.classList.add('spin');
+    if (refreshBtn) refreshBtn.disabled = true;
     
     // Solo regenerar el HTML de las tarjetas si es la carga inicial o la grilla está vacía
     if (isInitial || !document.getElementById(`card-${uabcServices[0].id}`)) {
@@ -292,8 +292,8 @@ async function checkAllServices(isInitial = false) {
     await Promise.all(checks);
 
     document.getElementById('lastUpdateText').innerText = `Última revisión: ${new Date().toLocaleTimeString()}`;
-    refreshIcon.classList.remove('spin');
-    refreshBtn.disabled = false;
+    if (refreshIcon) refreshIcon.classList.remove('spin');
+    if (refreshBtn) refreshBtn.disabled = false;
 
     // Actualizar resumen global
     if (offlineCount > 0) {
@@ -591,11 +591,63 @@ function filterServices() {
     });
 }
 
+// Actualizar la interfaz directamente con los datos cargados desde la BD sin hacer pings ni escrituras
+function updateUIFromLoadedData() {
+    renderCards();
+    
+    let onlineCount = 0; let offlineCount = 0; let slowCount = 0;
+    
+    uabcServices.forEach(service => {
+        const status = service.lastStatus || 'online';
+        const latency = (service.history && service.history.length > 0)
+            ? service.history[service.history.length - 1].latency
+            : 0;
+            
+        if (status === 'offline') {
+            offlineCount++;
+        } else if (status === 'slow') {
+            slowCount++;
+            onlineCount++;
+        } else {
+            onlineCount++;
+        }
+        
+        servicesState[service.id] = { status: status, latency: latency };
+        updateCardStatus(service.id, status, latency);
+    });
+    
+    // Obtener la fecha del último escaneo
+    let latestChecked = new Date();
+    if (uabcServices[0] && uabcServices[0].lastChecked) {
+        const dateVal = uabcServices[0].lastChecked;
+        if (typeof dateVal.toDate === 'function') {
+            latestChecked = dateVal.toDate();
+        } else {
+            latestChecked = new Date(dateVal);
+        }
+    }
+    
+    document.getElementById('lastUpdateText').innerText = `Última revisión: ${latestChecked.toLocaleTimeString()}`;
+    
+    // Actualizar resumen global
+    const globalStatus = document.getElementById('globalStatus');
+    if (offlineCount > 0) {
+        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium animate-pulse';
+        globalStatus.innerHTML = `<i class="ph ph-warning-circle text-xl"></i><span>${offlineCount} sistema(s) caídos</span>`;
+    } else if (slowCount > 0) {
+        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 font-medium';
+        globalStatus.innerHTML = `<i class="ph ph-warning text-xl"></i><span>${slowCount} sistema(s) lentos</span>`;
+    } else {
+        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-green-100 dark:bg-green-900/30 text-uabc-green dark:text-green-400 font-medium';
+        globalStatus.innerHTML = '<i class="ph ph-check-circle text-xl"></i><span>Sistemas operando al 100%</span>';
+    }
+}
+
 // Iniciar al cargar
 window.onload = async () => {
     await loadServicesData();
     if (uabcServices.length > 0) {
-        checkAllServices(true); // Carga inicial
+        updateUIFromLoadedData(); // Renderizar estados directamente de la base de datos sin disparar pings
         
         // Auto-actualizar cada 10 minutos en segundo plano mientras la pestaña esté abierta
         setInterval(() => {
