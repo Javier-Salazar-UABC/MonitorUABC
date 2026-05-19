@@ -596,12 +596,9 @@ function updateUIFromLoadedData() {
                     const clientLatency = Math.round(performance.now() - startCheck);
                     const finalStatus = clientLatency > 3000 ? 'slow' : 'online';
                     
-                    console.log(`✨ Autocorrección: ${service.name} estaba marcado como caído por el bot, pero está en línea para el cliente. Corrigiendo...`);
+                    console.log(`✨ Autocorrección Visual: ${service.name} estaba marcado como caído por el bot, pero está en línea para el cliente. Corrigiendo localmente...`);
                     
-                    // Guardar corrección real en Firestore/localStorage
-                    await logServiceStatus(service.id, finalStatus, clientLatency);
-                    
-                    // Actualizar estado en interfaz
+                    // Actualizar estado únicamente en la interfaz del cliente (sin escribir a Firestore para proteger la BD)
                     servicesState[service.id] = { status: finalStatus, latency: clientLatency };
                     updateCardStatus(service.id, finalStatus, clientLatency);
                     
