@@ -11,6 +11,8 @@ jobs:
   monitor:
     name: Escaneo de Servicios UABC
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
       # 1. Copiar el repositorio de la aplicación en el servidor virtual de GitHub
