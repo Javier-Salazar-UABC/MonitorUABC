@@ -584,52 +584,8 @@ function updateUIFromLoadedData() {
             ? service.history[service.history.length - 1].latency
             : 0;
             
-        if (status === 'offline') {
-            // Inicializar en estado "Comprobando" temporal
-            servicesState[service.id] = { status: 'verifying', latency: 0 };
-            updateCardStatus(service.id, 'verifying', 0);
-            
-            // MECANISMO DE AUTOCORRECCIÓN (Self-Healing):
-            // Si la base de datos dice que está caído (porque el bot en la nube de GitHub Actions fue bloqueado por IP),
-            // el navegador del estudiante (que usa IP residencial sin bloqueo) hace una prueba silenciosa.
-            // Si responde correctamente, corrige el estado en Firestore y la interfaz de inmediato.
-            setTimeout(async () => {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
-                    const startCheck = performance.now();
-                    
-                    await fetch(service.url, {
-                        mode: 'no-cors',
-                        signal: controller.signal,
-                        cache: 'no-cache'
-                    });
-                    
-                    clearTimeout(timeoutId);
-                    const clientLatency = Math.round(performance.now() - startCheck);
-                    const finalStatus = clientLatency > 3000 ? 'slow' : 'online';
-                    
-                    console.log(`✨ Autocorrección Visual: ${service.name} estaba marcado como caído por el bot, pero está en línea para el cliente. Corrigiendo localmente...`);
-                    
-                    // Actualizar estado únicamente en la interfaz del cliente (sin escribir a Firestore para proteger la BD)
-                    servicesState[service.id] = { status: finalStatus, latency: clientLatency };
-                    updateCardStatus(service.id, finalStatus, clientLatency);
-                    
-                    // Actualizar el banner global
-                    recalculateGlobalStatus();
-                } catch (err) {
-                    // Si falla de verdad, ahora sí confirmamos el estado de Offline definitivo en la tarjeta
-                    servicesState[service.id] = { status: 'offline', latency: 0 };
-                    updateCardStatus(service.id, 'offline', 0);
-                    recalculateGlobalStatus();
-                }
-            }, 500 + Math.random() * 1500); // Escalado aleatorio para evitar ráfagas
-            
-        } else {
-            const finalStatus = status === 'slow' ? 'slow' : 'online';
-            servicesState[service.id] = { status: finalStatus, latency: latency };
-            updateCardStatus(service.id, finalStatus, latency);
-        }
+        servicesState[service.id] = { status: status, latency: latency };
+        updateCardStatus(service.id, status, latency);
     });
     
     // Obtener la fecha del último escaneo
