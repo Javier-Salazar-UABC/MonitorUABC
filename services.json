@@ -56,13 +56,6 @@
         "uptime": "99.7%"
     },
     {
-        "id": "biblioteca",
-        "name": "Biblioteca UABC",
-        "url": "http://www.uabc.mx/biblioteca/",
-        "category": "Académico",
-        "uptime": "99.6%"
-    },
-    {
         "id": "ciad",
         "name": "CIAD",
         "url": "https://ciad.mxl.uabc.mx/",
