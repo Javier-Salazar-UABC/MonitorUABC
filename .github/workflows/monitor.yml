@@ -17,12 +17,11 @@ jobs:
       - name: Descargar Repositorio
         uses: actions/checkout@v4
 
-      # 2. Configurar Node.js (versión 20, que cuenta con fetch nativo)
+      # 2. Configurar Node.js (versión 24, moderna y recomendada)
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '24'
 
       # 3. Instalar la librería cliente de Firebase para conectarse a la base de datos
       - name: Instalar Firebase
