@@ -1,0 +1,33 @@
+name: Monitor UABC Cron Job
+
+# Controla cuándo se ejecuta la acción de monitoreo
+on:
+  schedule:
+    # Se ejecuta al minuto 0 de cada hora (24 veces al día, los 365 días del año)
+    - cron: '0 * * * *'
+  workflow_dispatch: # Permite iniciar el escaneo manualmente desde la pestaña Actions en GitHub
+
+jobs:
+  monitor:
+    name: Escaneo de Servicios UABC
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Copiar el repositorio de la aplicación en el servidor virtual de GitHub
+      - name: Descargar Repositorio
+        uses: actions/checkout@v4
+
+      # 2. Configurar Node.js (versión 20, que cuenta con fetch nativo)
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Instalar la librería cliente de Firebase para conectarse a la base de datos
+      - name: Instalar Firebase
+        run: npm install firebase
+
+      # 4. Ejecutar el script de monitoreo
+      - name: Ejecutar Ping y Sincronizar Firestore
+        run: node ping-runner.js
