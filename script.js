@@ -583,7 +583,7 @@ function updateUIFromLoadedData() {
             setTimeout(async () => {
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6s timeout
+                    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
                     const startCheck = performance.now();
                     
                     await fetch(service.url, {

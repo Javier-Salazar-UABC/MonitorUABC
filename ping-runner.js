@@ -63,7 +63,7 @@ async function pingUrl(url) {
     const start = Date.now();
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos de timeout
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos de timeout
 
         // Usamos un User-Agent y cabeceras de Chrome real para evitar bloqueos del firewall de la universidad
         await fetch(url, {
