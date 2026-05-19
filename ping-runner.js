@@ -16,11 +16,13 @@ const configPath = path.join(__dirname, 'firebase-config.js');
 let firebaseConfig;
 
 try {
-    const configContent = fs.readFileSync(configPath, 'utf8');
-    // Evaluamos el archivo para extraer la variable global firebaseConfig
+    let configContent = fs.readFileSync(configPath, 'utf8');
+    // Reemplazamos la declaración 'const firebaseConfig' por una asignación plana 'firebaseConfig ='
+    // Esto permite que el eval asigne el objeto a la variable 'let firebaseConfig' declarada en este ámbito superior.
+    configContent = configContent.replace(/const\s+firebaseConfig/g, 'firebaseConfig');
     eval(configContent);
 } catch (e) {
-    console.error("❌ Error al leer 'firebase-config.js':", e);
+    console.error("❌ Error al leer o evaluar 'firebase-config.js':", e);
     process.exit(1);
 }
 
