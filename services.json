@@ -112,9 +112,9 @@
         "uptime": "99.5%"
     },
     {
-        "id": "directorio",
-        "name": "Directorio Telefónico",
-        "url": "http://www.uabc.mx/acerca-de-directorio/",
+        "id": "test",
+        "name": "Directorio test",
+        "url": "http://uabcfalso.com/",
         "category": "General",
         "uptime": "99.9%"
     }
