@@ -215,36 +215,109 @@ function renderCards() {
     });
 }
 
-// 5. LÓGICA DE MONITOREO Y LATENCIA (LECTURA DESDE LA BASE DE DATOS)
-async function checkAllServices(isInitial = false) {
+// 5. LÓGICA DE MONITOREO Y LATENCIA (LECTURA O ESCANEO EN VIVO SEGÚN USUARIO)
+async function checkAllServices(isInitial = false, isForceAdminPing = false) {
     const refreshBtn = document.getElementById('refreshBtn');
     const refreshIcon = document.getElementById('refreshIcon');
     const globalStatus = document.getElementById('globalStatus');
 
     if (refreshIcon) refreshIcon.classList.add('spin');
     if (refreshBtn) refreshBtn.disabled = true;
-    
-    if (globalStatus) {
-        globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium';
-        globalStatus.innerHTML = '<i class="ph ph-circle-notch spin text-lg"></i><span>Sincronizando con base de datos...</span>';
-    }
 
-    try {
-        // En lugar de hacer pings desde el navegador (lo cual falla por CORS y Contenido Mixto HTTPS/HTTP),
-        // descargamos los últimos estados reales del bot en la nube de GitHub Actions.
-        await loadServicesData();
-        
-        // Renderizar los estados directamente
-        updateUIFromLoadedData();
-        
-    } catch (error) {
-        console.error("Error al sincronizar servicios:", error);
-    } finally {
-        // Simular un pequeño delay de carga premium
-        setTimeout(() => {
+    if (isForceAdminPing) {
+        // MODO ADMINISTRADOR: Escaneo en vivo y actualización de Base de Datos
+        if (globalStatus) {
+            globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium';
+            globalStatus.innerHTML = '<i class="ph ph-circle-notch spin text-lg"></i><span>Forzando escaneo en vivo y actualizando Base de Datos...</span>';
+        }
+
+        try {
+            // Asegurarnos de que los servicios básicos estén cargados
+            if (uabcServices.length === 0) {
+                const response = await fetch('services.json');
+                uabcServices = await response.json();
+                initFirebase();
+                await syncServicesWithDatabase();
+            }
+
+            // Realizar pings reales en paralelo
+            const checks = uabcServices.map(async (service) => {
+                const start = performance.now();
+                let status = 'online';
+                let latency = 0;
+
+                // Cambiar temporalmente la tarjeta a estado "Comprobando..."
+                servicesState[service.id] = { status: 'verifying', latency: 0 };
+                updateCardStatus(service.id, 'verifying', 0);
+                recalculateGlobalStatus();
+
+                try {
+                    const controller = new AbortController();
+                    // Usamos el timeout de 12 segundos configurado para el navegador
+                    const timeoutId = setTimeout(() => controller.abort(), 12000); 
+
+                    await fetch(service.url, {
+                        mode: 'no-cors',
+                        signal: controller.signal,
+                        cache: 'no-cache'
+                    });
+
+                    clearTimeout(timeoutId);
+                    latency = Math.round(performance.now() - start);
+                    status = latency > 3000 ? 'slow' : 'online';
+                } catch (error) {
+                    status = 'offline';
+                    latency = 0;
+                }
+
+                // Registrar datos locales y subir a Firestore (o LocalStorage)
+                await logServiceStatus(service.id, status, latency);
+
+                // Pintar el resultado final en la tarjeta
+                servicesState[service.id] = { status, latency };
+                updateCardStatus(service.id, status, latency);
+                recalculateGlobalStatus();
+            });
+
+            // Esperar a que se completen todas las peticiones
+            await Promise.all(checks);
+
+            // Actualizar la hora de la última revisión en la interfaz
+            document.getElementById('lastUpdateText').innerText = `Última revisión: ${new Date().toLocaleTimeString()}`;
+
+            if (globalStatus) {
+                globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-green-100 dark:bg-green-900/30 text-uabc-green dark:text-green-400 font-medium';
+                globalStatus.innerHTML = '<i class="ph ph-check-circle text-lg"></i><span>Escaneo completado y base de datos actualizada</span>';
+            }
+        } catch (error) {
+            console.error("Error en escaneo forzado de administrador:", error);
+            if (globalStatus) {
+                globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium';
+                globalStatus.innerHTML = '<i class="ph ph-x-circle text-lg"></i><span>Error al forzar actualización</span>';
+            }
+        } finally {
             if (refreshIcon) refreshIcon.classList.remove('spin');
             if (refreshBtn) refreshBtn.disabled = false;
-        }, 800);
+        }
+    } else {
+        // MODO ESTUDIANTE: Lectura pura y rápida de la base de datos
+        if (globalStatus) {
+            globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 font-medium';
+            globalStatus.innerHTML = '<i class="ph ph-circle-notch spin text-lg"></i><span>Sincronizando con base de datos...</span>';
+        }
+
+        try {
+            await loadServicesData();
+            updateUIFromLoadedData();
+        } catch (error) {
+            console.error("Error al sincronizar servicios:", error);
+        } finally {
+            // Simular un pequeño delay de carga premium
+            setTimeout(() => {
+                if (refreshIcon) refreshIcon.classList.remove('spin');
+                if (refreshBtn) refreshBtn.disabled = false;
+            }, 800);
+        }
     }
 }
 
