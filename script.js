@@ -361,7 +361,7 @@ function updateCardStatus(id, status, latency) {
         badge.innerHTML = 'En línea';
         latencyText.innerText = `${latency} ms`;
         latencyText.className = 'text-xs font-mono text-green-600 dark:text-green-400';
-        card.className = card.className.replace(/border-gray-100|border-red-200|border-yellow-300|dark:border-gray-700/, 'border-green-200 dark:border-green-800');
+        card.className = card.className.replace(/border-gray-100|border-red-300|border-yellow-300|border-blue-200|dark:border-gray-700/, 'border-green-200 dark:border-green-800');
     } else if (status === 'slow') {
         iconDiv.className = 'w-10 h-10 rounded-full bg-yellow-100 dark:bg-yellow-900/40 flex items-center justify-center text-yellow-600 dark:text-yellow-400';
         iconDiv.innerHTML = '<i class="ph ph-warning text-2xl"></i>';
@@ -369,7 +369,15 @@ function updateCardStatus(id, status, latency) {
         badge.innerHTML = 'Degradado';
         latencyText.innerText = `${latency} ms`;
         latencyText.className = 'text-xs font-mono text-yellow-600 dark:text-yellow-400 font-bold';
-        card.className = card.className.replace(/border-gray-100|border-green-200|border-red-200|dark:border-gray-700/, 'border-yellow-300 dark:border-yellow-700');
+        card.className = card.className.replace(/border-gray-100|border-green-200|border-red-300|border-blue-200|dark:border-gray-700/, 'border-yellow-300 dark:border-yellow-700');
+    } else if (status === 'verifying') {
+        iconDiv.className = 'w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-500 dark:text-blue-400';
+        iconDiv.innerHTML = '<i class="ph ph-circle-notch spin text-2xl"></i>';
+        badge.className = 'px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400';
+        badge.innerHTML = 'Comprobando...';
+        latencyText.innerText = `--- ms`;
+        latencyText.className = 'text-xs font-mono text-blue-500';
+        card.className = card.className.replace(/border-gray-100|border-green-200|border-yellow-300|border-red-300|dark:border-gray-700/, 'border-blue-200 dark:border-blue-800');
     } else {
         iconDiv.className = 'w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center text-red-500 dark:text-red-400';
         iconDiv.innerHTML = '<i class="ph ph-x-circle text-2xl"></i>';
@@ -377,7 +385,7 @@ function updateCardStatus(id, status, latency) {
         badge.innerHTML = 'Fuera de línea';
         latencyText.innerText = `Timeout`;
         latencyText.className = 'text-xs font-mono text-red-500';
-        card.className = card.className.replace(/border-gray-100|border-green-200|border-yellow-300|dark:border-gray-700/, 'border-red-300 dark:border-red-800');
+        card.className = card.className.replace(/border-gray-100|border-green-200|border-yellow-300|border-blue-200|dark:border-gray-700/, 'border-red-300 dark:border-red-800');
     }
 }
 
@@ -533,11 +541,13 @@ function filterServices() {
 
 // Recalcular y actualizar el banner de estado global
 function recalculateGlobalStatus() {
-    let onlineCount = 0; let offlineCount = 0; let slowCount = 0;
+    let onlineCount = 0; let offlineCount = 0; let slowCount = 0; let verifyingCount = 0;
     uabcServices.forEach(service => {
         const state = servicesState[service.id] || { status: 'online' };
         if (state.status === 'offline') {
             offlineCount++;
+        } else if (state.status === 'verifying') {
+            verifyingCount++;
         } else if (state.status === 'slow') {
             slowCount++;
             onlineCount++;
@@ -548,7 +558,10 @@ function recalculateGlobalStatus() {
 
     const globalStatus = document.getElementById('globalStatus');
     if (globalStatus) {
-        if (offlineCount > 0) {
+        if (verifyingCount > 0) {
+            globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium';
+            globalStatus.innerHTML = `<i class="ph ph-circle-notch spin text-xl"></i><span>Verificando ${verifyingCount} sistema(s)...</span>`;
+        } else if (offlineCount > 0) {
             globalStatus.className = 'flex items-center gap-2 px-4 py-2.5 rounded-full bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 font-medium animate-pulse';
             globalStatus.innerHTML = `<i class="ph ph-warning-circle text-xl"></i><span>${offlineCount} sistema(s) caídos</span>`;
         } else if (slowCount > 0) {
@@ -565,8 +578,6 @@ function recalculateGlobalStatus() {
 function updateUIFromLoadedData() {
     renderCards();
     
-    let onlineCount = 0; let offlineCount = 0; let slowCount = 0;
-    
     uabcServices.forEach(service => {
         const status = service.lastStatus || 'online';
         const latency = (service.history && service.history.length > 0)
@@ -574,7 +585,9 @@ function updateUIFromLoadedData() {
             : 0;
             
         if (status === 'offline') {
-            offlineCount++;
+            // Inicializar en estado "Comprobando" temporal
+            servicesState[service.id] = { status: 'verifying', latency: 0 };
+            updateCardStatus(service.id, 'verifying', 0);
             
             // MECANISMO DE AUTOCORRECCIÓN (Self-Healing):
             // Si la base de datos dice que está caído (porque el bot en la nube de GitHub Actions fue bloqueado por IP),
@@ -605,19 +618,18 @@ function updateUIFromLoadedData() {
                     // Actualizar el banner global
                     recalculateGlobalStatus();
                 } catch (err) {
-                    // Si falla de verdad, se queda como offline
+                    // Si falla de verdad, ahora sí confirmamos el estado de Offline definitivo en la tarjeta
+                    servicesState[service.id] = { status: 'offline', latency: 0 };
+                    updateCardStatus(service.id, 'offline', 0);
+                    recalculateGlobalStatus();
                 }
             }, 500 + Math.random() * 1500); // Escalado aleatorio para evitar ráfagas
             
-        } else if (status === 'slow') {
-            slowCount++;
-            onlineCount++;
         } else {
-            onlineCount++;
+            const finalStatus = status === 'slow' ? 'slow' : 'online';
+            servicesState[service.id] = { status: finalStatus, latency: latency };
+            updateCardStatus(service.id, finalStatus, latency);
         }
-        
-        servicesState[service.id] = { status: status, latency: latency };
-        updateCardStatus(service.id, status, latency);
     });
     
     // Obtener la fecha del último escaneo
